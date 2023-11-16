@@ -39,11 +39,7 @@ def backup_mysql_database(backup_path, db_name="all"):
         print(f"Error during backup: {e}")
     except Exception as e:
         print(f"An unexpected error occurred: {e}")
-        
-def run_setup_script():
-    setup_script_path = os.path.join(os.path.dirname(__file__), 'mysql_setup.py')
-    subprocess.run(['python3', setup_script_path], check=True)
-    
+         
 def parse_arguments():
     parser = argparse.ArgumentParser(description="MySQL Database Backup Tool")
     parser.add_argument("-d", "--database", help="Name of the database to backup. Default: all databases.", default="all")
