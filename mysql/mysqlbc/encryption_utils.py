@@ -1,6 +1,35 @@
 from cryptography.fernet import Fernet
 import json
 import os
+from dotenv import load_dotenv
+import base64
+from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
+
+load_dotenv()
+GLOBAL_PASSPHRASE = os.getenv("GLOBAL_PASSPHRASE")
+ENCRYPTION_SALT = base64.b64decode(os.getenv("ENCRYPTION_SALT"))
+SALT = base64.b64decode(os.getenv("ENCRYPTION_SALT"))
+
+def passphrase_to_key(passphrase):
+    """
+    Derives a Fernet key from a passphrase.
+
+    Args:
+    passphrase (str): The passphrase used for key derivation.
+
+    Returns:
+    bytes: A key derived from the passphrase.
+    """
+    kdf = PBKDF2HMAC(
+        algorithm=hashes.SHA256(),
+        length=32,
+        salt=SALT,
+        iterations=390000,
+        backend=default_backend()
+    )
+    return base64.urlsafe_b64encode(kdf.derive(passphrase.encode()))
 
 def generate_key():
     """
@@ -8,19 +37,17 @@ def generate_key():
     """
     return Fernet.generate_key()
 
-def save_key(key, key_file):
-    """
-    Saves the encryption key to a specified file.
-    """
+def save_key(key, key_file, passphrase):
+    fernet = Fernet(passphrase_to_key(passphrase))
+    encrypted_key = fernet.encrypt(key)
     with open(key_file, 'wb') as file:
-        file.write(key)
+        file.write(encrypted_key)
 
-def load_key(key_file):
-    """
-    Loads an encryption key from a specified file.
-    """
+def load_key(key_file, passphrase):
+    fernet = Fernet(passphrase_to_key(passphrase))
     with open(key_file, 'rb') as file:
-        return file.read()
+        encrypted_key = file.read()
+    return fernet.decrypt(encrypted_key)
 
 def encrypt_file(file_path, key, key_identifier):
     fernet = Fernet(key)

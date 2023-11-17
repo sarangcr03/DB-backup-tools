@@ -6,9 +6,11 @@ import uuid
 from dotenv import load_dotenv
 from encryption_utils import encrypt_file, decrypt_file, generate_key, save_key
 
+load_dotenv()
+GLOBAL_PASSPHRASE = os.getenv("GLOBAL_PASSPHRASE")
+
+
 def backup_mysql_database(backup_path, db_name="all"):
-    # Load MySQL credentials from .env
-    load_dotenv()
     mysql_user = os.getenv("MYSQL_USER")
     mysql_password = os.getenv("MYSQL_PASSWORD")
 
@@ -28,7 +30,7 @@ def backup_mysql_database(backup_path, db_name="all"):
 
         # Generate and save a new encryption key associated with this key_id
         new_key = generate_key()
-        save_key(new_key, f'key_{key_id}.key')
+        save_key(new_key, f'key_{key_id}.key', GLOBAL_PASSPHRASE)
 
         # Encrypt the backup file using the new key
         encrypt_file(backup_path, new_key, key_id)
@@ -44,17 +46,11 @@ def parse_arguments():
     parser = argparse.ArgumentParser(description="MySQL Database Backup Tool")
     parser.add_argument("-d", "--database", help="Name of the database to backup. Default: all databases.", default="all")
     parser.add_argument("-o", "--output", help="Output path for the backup file")
-    parser.add_argument("-s", "--setup", help="Run the setup script for MySQL", action="store_true")
     return parser.parse_args()
 
 def main():
     args = parse_arguments()
-
-    # Check if setup script needs to be run
-    if args.setup:
-        run_setup_script()
-        return
-
+    
     # Perform backup based on the provided arguments
     if args.output:
         backup_mysql_database(args.output, args.database)

@@ -4,6 +4,7 @@ import getpass
 import is_mysql_active
 from dotenv import load_dotenv, set_key
 import os
+import base64
 
 def ensure_env_file_exists(env_file_path):
     """
@@ -30,35 +31,77 @@ def run_mysql_command(command):
     except Exception as e:
         print(f"An unexpected error occurred: {e}")
 
+def does_mysql_user_exist(username):
+    """
+    Checks if a MySQL user exists.
+
+    Args:
+    username (str): The username to check for.
+
+    Returns:
+    bool: True if the user exists, False otherwise.
+    """
+    check_user_command = f"SELECT COUNT(*) FROM mysql.user WHERE user = '{username}'"
+    try:
+        result = subprocess.run(['mysql', '-NBe', check_user_command], capture_output=True, text=True)
+        return result.stdout.strip() == "1"
+    except subprocess.CalledProcessError as e:
+        print(f"Error checking MySQL user: {e}")
+        return False
+
 def setup_mysql_user(env_file):
     """
-    Sets up a new MySQL user with limited privileges for backup purposes and stores credentials in .env file.
+    Sets up or updates a MySQL user for backup purposes and stores credentials in .env file.
 
     Args:
     env_file (str): Path to the .env file.
     """
-    username = input("Enter a new username for MySQL: ")
-    password = getpass.getpass("Enter a new password for MySQL: ")
+    username = input("Enter the username for MySQL: ")
 
-    try:
-        # Create MySQL user
-        command = f"CREATE USER '{username}'@'localhost' IDENTIFIED BY '{password}';"
-        run_mysql_command(command)
-        # Grant SELECT and LOCK TABLES privileges
-        command = f"GRANT SELECT, LOCK TABLES ON *.* TO '{username}'@'localhost';"
-        run_mysql_command(command)
-        print(f"User {username} created successfully for MySQL.")
-        set_key(env_file, "MYSQL_USER", username)
-        set_key(env_file, "MYSQL_PASSWORD", password)
-        print(f"Credentials for '{username}' are saved in '{env_file}'.")
+    if does_mysql_user_exist(username):
+        print(f"User '{username}' already exists.")
+        password = getpass.getpass("Enter the existing password for this MySQL user: ")
+    else:
+        print(f"Creating new user '{username}'.")
+        password = getpass.getpass("Enter a new password for MySQL: ")
+        create_user_command = f"CREATE USER '{username}'@'localhost' IDENTIFIED BY '{password}';"
+        grant_privileges_command = f"GRANT SELECT, LOCK TABLES ON *.* TO '{username}'@'localhost';"
+        try:
+            run_mysql_command(create_user_command)
+            run_mysql_command(grant_privileges_command)
+            print(f"User '{username}' created successfully for MySQL.")
+        except Exception as e:
+            print(f"Failed to create user for MySQL: {e}")
+            return
 
-    except Exception as e:
-        print(f"Failed to create user for MySQL: {e}")
+    # Save credentials in .env file
+    set_key(env_file, "MYSQL_USER", username)
+    set_key(env_file, "MYSQL_PASSWORD", password)
+    print(f"Credentials for '{username}' are saved in '{env_file}'.")
+
+def setup_global_passphrase_and_salt(env_file):
+    """
+    Sets up a global passphrase for encryption and a random salt, and stores them in the .env file.
+
+    Args:
+    env_file (str): Path to the .env file.
+    """
+    passphrase = getpass.getpass("Enter a global passphrase for encryption: ")
+    set_key(env_file, "GLOBAL_PASSPHRASE", passphrase)
+
+    salt = os.urandom(16)
+    set_key(env_file, "ENCRYPTION_SALT", base64.b64encode(salt).decode())
+    print("Global passphrase and salt have been set.")
 
 def main():
     env_file = '.env'
     ensure_env_file_exists(env_file)
     load_dotenv(env_file)
+
+    # Check if global passphrase and salt are already set
+    if not os.getenv("GLOBAL_PASSPHRASE") or not os.getenv("ENCRYPTION_SALT"):
+        setup_global_passphrase_and_salt(env_file)
+
     # Check for MySQL service
     if is_mysql_active.is_mysql_service_active():
         print("MySQL service is active.")
