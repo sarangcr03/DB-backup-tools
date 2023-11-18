@@ -59,7 +59,7 @@ def setup_mysql_user(env_file):
     username = input("Enter the username for MySQL: ")
 
     if does_mysql_user_exist(username):
-        print(f"User '{username}' already exists.")
+        print(f"User '{username}' found.")
         password = getpass.getpass("Enter the existing password for this MySQL user: ")
     else:
         print(f"Creating new user '{username}'.")
@@ -103,10 +103,15 @@ def main():
         setup_global_passphrase_and_salt(env_file)
 
     # Check for MySQL service
-    if is_mysql_active.is_mysql_service_active():
+        if is_mysql_active.is_mysql_service_active():
         print("MySQL service is active.")
-        if input("Do you want to create a new MySQL user for backups? (y/n): ").lower() == 'y':
+        user_input = input("Do you want to create a new MySQL user for backups? (y/n): ").lower()
+        if user_input == 'y':
             setup_mysql_user(env_file)
+        elif user_input == 'n':
+            setup_mysql_user(env_file)
+        else:
+            print("Invalid input. Exiting setup.")
     else:
         print("MySQL service is not active or not present.")
 
