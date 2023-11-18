@@ -104,16 +104,16 @@ def main():
 
     # Check for MySQL service
         if is_mysql_active.is_mysql_service_active():
-        print("MySQL service is active.")
-        user_input = input("Do you want to create a new MySQL user for backups? (y/n): ").lower()
-        if user_input == 'y':
-            setup_mysql_user(env_file)
-        elif user_input == 'n':
-            setup_mysql_user(env_file)
+            print("MySQL service is active.")
+            user_input = input("Do you want to create a new MySQL user for backups? (y/n): ").lower()
+            if user_input == 'y':
+                setup_mysql_user(env_file)
+            elif user_input == 'n':
+                setup_mysql_user(env_file)
+            else:
+                print("Invalid input. Exiting setup.")
         else:
-            print("Invalid input. Exiting setup.")
-    else:
-        print("MySQL service is not active or not present.")
+            print("MySQL service is not active or not present.")
 
 if __name__ == "__main__":
     main()
