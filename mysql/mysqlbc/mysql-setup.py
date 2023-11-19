@@ -48,7 +48,7 @@ def does_mysql_user_exist(username):
     except subprocess.CalledProcessError as e:
         print(f"Error checking MySQL user: {e}")
         return False
-
+# Create new user and return password if errorless
 def create_new_user(username):
     print(f"Creating new user '{username}'.")
         password = getpass.getpass("Enter a new password for MySQL: ")
@@ -61,7 +61,7 @@ def create_new_user(username):
             return password
         except Exception as e:
             print(f"Failed to create user for MySQL: {e}")
-            return ""
+            return
 
 def setup_mysql_user(env_file, want_new_user):
     """
@@ -69,6 +69,7 @@ def setup_mysql_user(env_file, want_new_user):
 
     Args:
     env_file (str): Path to the .env file.
+    want_new_user (bool): Boolean used to create a new user if True
     """
     username = input("Enter the username for MySQL: ")
     
@@ -76,43 +77,52 @@ def setup_mysql_user(env_file, want_new_user):
     if does_mysql_user_exist(username) && want_new_user == False:
         print(f"User '{username}' found.")
         password = getpass.getpass("Enter the existing password for this MySQL user: ")
+        
     # Trying to create a new user with existing username 
     elif does_mysql_user_exist(username) && want_new_user:
         print(f"User '{username}' exists.")
-        login = input(f"Do you want to log into '{username}'? (y/n): ").lower()
-        if login == 'y':
-            password = getpass.getpass("Enter the existing password for this MySQL user: ")
-        elif login == 'n':
-            username = input("Enter the username for a new MySQL user: ")
-            password = create_new_user(username)
-            if password == "":
-                return
-        else:
-            print("Invalid input.")
-            return
+        while True:
+            login = input("Do you want to log into an existing user? (y/n): ").lower()
+            if login == 'y':
+                username = input("Enter the username for MySQL: ")
+                if does_mysql_user_exist(username):
+                    password = getpass.getpass("Enter the existing password for this MySQL user: ")
+                    break
+            elif login == 'n':
+                username = input("Enter the username for a new MySQL user: ")
+                if !does_mysql_user_exist(username):
+                    password = create_new_user(username)
+                        if password == "":
+                            return
+                    break
+            else:
+                print(f"Invalid input: '{login}'")
+            
     # Trying to use a user that does not exist    
     elif !does_mysql_user_exist(username) && want_new_user == False:
         print("User does not exist.")
-        login = input("Do you want to log into an existing user? (y/n): ").lower()
-        if login == 'y':
-            username = input("Enter the username for MySQL: ")
-            password = getpass.getpass("Enter the existing password for this MySQL user: ")
-        elif login == 'n':
+        while True:
+            login = input("Do you want to log into an existing user? (y/n): ").lower()
+            if login == 'y':
+                username = input("Enter the username for MySQL: ")
+                if does_mysql_user_exist(username):
+                    password = getpass.getpass("Enter the existing password for this MySQL user: ")
+                    break
+            elif login == 'n':
+                username = input("Enter the username for a new MySQL user: ")
+                if !does_mysql_user_exist(username):
+                    password = create_new_user(username)
+                        if password == "":
+                            return
+                    break
+            else:
+                print("Invalid input: '{login}'")
+            
     # Creating a new MySQL user    
     else:
-        _______________________________________________________________________________________
-        print(f"Creating new user '{username}'.")
-        password = getpass.getpass("Enter a new password for MySQL: ")
-        create_user_command = f"CREATE USER '{username}'@'localhost' IDENTIFIED BY '{password}';"
-        grant_privileges_command = f"GRANT SELECT, LOCK TABLES ON *.* TO '{username}'@'localhost';"
-        try:
-            run_mysql_command(create_user_command)
-            run_mysql_command(grant_privileges_command)
-            print(f"User '{username}' created successfully for MySQL.")
-        except Exception as e:
-            print(f"Failed to create user for MySQL: {e}")
+        password = create_new_user(username)
+        if password == "":
             return
-            __________________________________________________________________________
 
     # Save credentials in .env file
     set_key(env_file, "MYSQL_USER", username)
