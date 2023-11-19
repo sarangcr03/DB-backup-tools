@@ -49,7 +49,21 @@ def does_mysql_user_exist(username):
         print(f"Error checking MySQL user: {e}")
         return False
 
-def setup_mysql_user(env_file):
+def create_new_user(username):
+    print(f"Creating new user '{username}'.")
+        password = getpass.getpass("Enter a new password for MySQL: ")
+        create_user_command = f"CREATE USER '{username}'@'localhost' IDENTIFIED BY '{password}';"
+        grant_privileges_command = f"GRANT SELECT, LOCK TABLES ON *.* TO '{username}'@'localhost';"
+        try:
+            run_mysql_command(create_user_command)
+            run_mysql_command(grant_privileges_command)
+            print(f"User '{username}' created successfully for MySQL.")
+            return password
+        except Exception as e:
+            print(f"Failed to create user for MySQL: {e}")
+            return ""
+
+def setup_mysql_user(env_file, want_new_user):
     """
     Sets up or updates a MySQL user for backup purposes and stores credentials in .env file.
 
@@ -57,11 +71,36 @@ def setup_mysql_user(env_file):
     env_file (str): Path to the .env file.
     """
     username = input("Enter the username for MySQL: ")
-
-    if does_mysql_user_exist(username):
+    
+    # Log into existing user
+    if does_mysql_user_exist(username) && want_new_user == False:
         print(f"User '{username}' found.")
         password = getpass.getpass("Enter the existing password for this MySQL user: ")
+    # Trying to create a new user with existing username 
+    elif does_mysql_user_exist(username) && want_new_user:
+        print(f"User '{username}' exists.")
+        login = input(f"Do you want to log into '{username}'? (y/n): ").lower()
+        if login == 'y':
+            password = getpass.getpass("Enter the existing password for this MySQL user: ")
+        elif login == 'n':
+            username = input("Enter the username for a new MySQL user: ")
+            password = create_new_user(username)
+            if password == "":
+                return
+        else:
+            print("Invalid input.")
+            return
+    # Trying to use a user that does not exist    
+    elif !does_mysql_user_exist(username) && want_new_user == False:
+        print("User does not exist.")
+        login = input("Do you want to log into an existing user? (y/n): ").lower()
+        if login == 'y':
+            username = input("Enter the username for MySQL: ")
+            password = getpass.getpass("Enter the existing password for this MySQL user: ")
+        elif login == 'n':
+    # Creating a new MySQL user    
     else:
+        _______________________________________________________________________________________
         print(f"Creating new user '{username}'.")
         password = getpass.getpass("Enter a new password for MySQL: ")
         create_user_command = f"CREATE USER '{username}'@'localhost' IDENTIFIED BY '{password}';"
@@ -73,11 +112,13 @@ def setup_mysql_user(env_file):
         except Exception as e:
             print(f"Failed to create user for MySQL: {e}")
             return
+            __________________________________________________________________________
 
     # Save credentials in .env file
     set_key(env_file, "MYSQL_USER", username)
     set_key(env_file, "MYSQL_PASSWORD", password)
     print(f"Credentials for '{username}' are saved in '{env_file}'.")
+
 
 def setup_global_passphrase_and_salt(env_file):
     """
@@ -107,9 +148,9 @@ def main():
             print("MySQL service is active.")
             user_input = input("Do you want to create a new MySQL user for backups? (y/n): ").lower()
             if user_input == 'y':
-                setup_mysql_user(env_file)
+                setup_mysql_user(env_file, want_new_user: bool = True)
             elif user_input == 'n':
-                setup_mysql_user(env_file)
+                setup_mysql_user(env_file, want_new_user: bool = False)
             else:
                 print("Invalid input. Exiting setup.")
         else:
